@@ -1,0 +1,14 @@
+.pmpro_checkout-field {
+    margin-bottom: 15px;
+}
+.pmpro_checkout-field label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+.pmpro_checkout-field input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
