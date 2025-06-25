@@ -124,7 +124,7 @@ Para procesar pagos recurrentes y notificaciones automáticas:
 ## 💬 Soporte
 
 ¿Problemas?  
-- Abre un [issue en GitHub](https://github.com/tu-usuario/pmpro-gateway-pagbank/issues).
+- Abre un [issue en GitHub](https://github.com/DavidCamejo/pmpro-gateway-pagbank/issues).
 - Consulta la [documentación de PagBank](https://dev.pagbank.uol.com.br/docs).
 
 ---
