@@ -3,7 +3,7 @@ Contributors: David Camejo
 Tags: pmpro, pagbank, payment gateway
 Requires at least: WordPress 5.0
 Tested up to: WordPress 6.0
-Stable tag: 1.0
+Stable tag: 1.1.0
 
 == Descripción ==
 Integración de PagBank como gateway de pago para Paid Memberships Pro.

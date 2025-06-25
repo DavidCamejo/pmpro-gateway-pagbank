@@ -231,5 +231,26 @@ class PMPro_PagBank_API {
 		$response = $this->api_request("payments/$payment_id", 'GET');
 		return $response['status']; // PAID, WAITING, FAILED
 	}
+
+	/**
+	 * Registrar webhooks en PagBank al activar el plugin.
+	 */
+	public function register_webhooks() {
+		$webhook_url = rest_url('pmpro-pagbank/v1/webhook');
+		$data = array(
+			'url' => $webhook_url,
+			'events' => array(
+				'PAYMENT_PIX_RECEIVED',
+				'PAYMENT_BOLETO_PAID'
+			)
+		);
+		$response = $this->api_request('webhooks', 'POST', $data);
+		if ($response['id']) {
+			update_option('pmpro_pagbank_webhook_id', $response['id']);
+		}
+	}
+
+	// Llamar al activar el plugin
+	register_activation_hook(__FILE__, array('PMPro_PagBank_API', 'register_webhooks'));
 }
 ?>

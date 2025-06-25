@@ -2,28 +2,106 @@
 class PMPro_PagBank_Webhooks {
     public function register() {
         add_action('rest_api_init', function() {
+            // Webhook principal (para todos los eventos)
             register_rest_route('pmpro-pagbank/v1', '/webhook', array(
-                'methods' => 'POST',
+                'methods'  => 'POST',
                 'callback' => array($this, 'handle_webhook'),
+                'permission_callback' => '__return_true'
+            ));
+            
+            // Webhook específico para Pix (opcional)
+            register_rest_route('pmpro-pagbank/v1', '/webhook-pix', array(
+                'methods'  => 'POST',
+                'callback' => array($this, 'handle_pix_webhook'),
                 'permission_callback' => '__return_true'
             ));
         });
     }
 
+    /**
+     * Manejar eventos genéricos.
+     */
     public function handle_webhook($request) {
         $payload = $request->get_json_params();
-        $signature = $request->get_header('X-PagBank-Signature');
-
-        if (!$this->verify_signature($payload, $signature)) {
+        if (!$this->verify_signature($request)) {
             return new WP_REST_Response(array('error' => 'Firma inválida'), 403);
         }
 
-        if ($payload['event'] == 'RECURRENCE_SUCCESS') {
-            $this->process_recurring_payment($payload);
+        switch ($payload['event']) {
+            case 'PAYMENT_PIX_RECEIVED':
+                $this->handle_pix_payment($payload);
+                break;
+            case 'PAYMENT_BOLETO_PAID':
+                $this->handle_boleto_payment($payload);
+                break;
+            default:
+                // Eventos de tarjeta u otros
         }
-
         return new WP_REST_Response(array('status' => 'success'), 200);
     }
+
+    /**
+     * Webhook dedicado solo para Pix (ejemplo avanzado).
+     */
+    public function handle_pix_webhook($request) {
+        $payload = $request->get_json_params();
+        if (!$this->verify_signature($request)) {
+            error_log("Webhook Pix: Firma inválida");
+            return new WP_REST_Response(array('error' => 'Firma inválida'), 403);
+        }
+
+        $this->handle_pix_payment($payload);
+        return new WP_REST_Response(array('status' => 'processed'), 200);
+    }
+
+    /**
+     * Procesar pago exitoso via Pix.
+     */
+    private function handle_pix_payment($payload) {
+        $payment_id = $payload['payment']['id'];
+        $order = $this->get_order_by_payment_id($payment_id);
+
+        if ($order && $payload['payment']['status'] === 'PAID') {
+            pmpro_changeMembershipLevel($order->membership_id, $order->user_id);
+            $order->status = 'success';
+            $order->saveOrder();
+            
+            // Opcional: Enviar email de confirmación
+            wp_mail(
+                $order->user_email,
+                'Pago con Pix confirmado',
+                'Tu membresía ha sido activada.'
+            );
+        }
+    }
+
+    /**
+     * Procesar pago exitoso via Boleto.
+     */
+    private function handle_boleto_payment($payload) {
+        $payment_id = $payload['payment']['id'];
+        $order = $this->get_order_by_payment_id($payment_id);
+
+        if ($order && $payload['payment']['status'] === 'PAID') {
+            $order->status = 'success';
+            $order->saveOrder();
+            
+            // Actualizar membresía y notificar
+            pmpro_changeMembershipLevel($order->membership_id, $order->user_id);
+        }
+    }
+
+    /**
+     * Helper: Obtener orden por payment_id.
+     */
+    private function get_order_by_payment_id($payment_id) {
+        global $wpdb;
+        $order_id = $wpdb->get_var(
+            $wpdb->prepare("SELECT post_id FROM $wpdb->postmeta WHERE meta_key = '_payment_id' AND meta_value = %s", $payment_id)
+        );
+        return new MemberOrder($order_id);
+    }
+}
 
     private function verify_signature($payload, $signature) {
         $secret = pmpro_getOption('pagbank_api_key');

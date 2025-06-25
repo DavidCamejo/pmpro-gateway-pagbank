@@ -2,8 +2,8 @@
 /*
 Plugin Name: PMPro Gateway - PagBank
 Description: Integración de PagBank con Paid Memberships Pro.
-Version: 1.0
-Author: Tu Nombre
+Version: 1.1.0
+Author: David Camejo
 License: GPLv2
 */
 
