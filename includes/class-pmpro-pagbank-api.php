@@ -86,6 +86,25 @@ class PMPro_PagBank_API {
 		return (wp_remote_retrieve_response_code($response) === 201) ? $plan_id : false;
 	}
 
+
+    /**
+     * Solicitud genérica a la API.
+     */
+    private function api_request($endpoint, $method = 'GET', $data = array()) {
+        $url = $this->get_api_url() . '/' . $endpoint;
+        $args = array(
+            'headers' => array(
+                'Authorization' => 'Bearer ' . $this->api_key,
+                'Content-Type' => 'application/json'
+            ),
+            'method' => $method,
+            'body' => $method !== 'GET' ? json_encode($data) : null
+        );
+
+        $response = wp_remote_request($url, $args);
+        return json_decode(wp_remote_retrieve_body($response), true);
+    }
+
 	/**
 	 * Preparar datos del cliente para PagBank.
 	 */
@@ -124,5 +143,93 @@ class PMPro_PagBank_API {
 			);
 		}
 	});
+
+	public function cancel_subscription($subscription_id) {
+		$endpoint = $this->get_api_url() . '/subscriptions/' . $subscription_id . '/cancel';
+		$response = wp_remote_post($endpoint, array(
+			'headers' => array(
+				'Authorization' => 'Bearer ' . $this->api_key
+			)
+		));
+		return wp_remote_retrieve_response_code($response) === 200;
+	}
+
+	/**
+	 * Procesar pago via Pix.
+	 */
+	public function create_pix_payment($order) {
+		$data = array(
+			'payment_method' => 'PIX',
+			'amount' => $order->initial_payment * 100, // En centavos
+			'customer' => $this->get_customer_data($order),
+			'metadata' => array(
+				'order_id' => $order->code,
+				'pmpro_level_id' => $order->membership_level->id
+			),
+			'expires_in' => 1800 // 30 minutos (estándar para Pix)
+		);
+
+		$response = $this->api_request('payments', 'POST', $data);
+		
+		if ($response['status'] === 'WAITING') {
+			return array(
+				'status' => 'success',
+				'payment_id' => $response['id'],
+				'pix_qr_code' => $response['pix']['qr_code'],
+				'pix_expiration' => $response['pix']['expiration_date']
+			);
+		} else {
+			return array(
+				'status' => 'error',
+				'error_message' => $response['error_message'] ?? 'Error al generar Pix'
+			);
+		}
+	}
+
+	/**
+	 * Procesar pago via Boleto.
+	 */
+	public function create_boleto_payment($order) {
+		$data = array(
+			'payment_method' => 'BOLETO',
+			'amount' => $order->initial_payment * 100,
+			'customer' => $this->get_customer_data($order),
+			'boleto' => array(
+				'due_date' => date('Y-m-d', strtotime('+3 days')),
+				'instructions' => 'Pagar até a data de vencimento.'
+			)
+		);
+
+		$response = $this->api_request('payments', 'POST', $data);
+		
+		if ($response['status'] === 'WAITING') {
+			return array(
+				'status' => 'success',
+				'payment_id' => $response['id'],
+				'boleto_url' => $response['boleto']['url']
+			);
+		} else {
+			return array(
+				'status' => 'error',
+				'error_message' => $response['error_message'] ?? 'Error al generar Boleto'
+			);
+		}
+	}
+
+	/**
+	 * Reintentar pago fallido.
+	 */
+	public function retry_payment($payment_id) {
+		$response = $this->api_request("payments/$payment_id/retry", 'POST');
+		return $response['status'] === 'PAID';
+	}
+
+	/**
+	 * Verificar estado de pago (para Pix/Boleto).
+	 */
+	public function check_payment_status($payment_id) {
+		$response = $this->api_request("payments/$payment_id", 'GET');
+		return $response['status']; // PAID, WAITING, FAILED
+	}
 }
 ?>

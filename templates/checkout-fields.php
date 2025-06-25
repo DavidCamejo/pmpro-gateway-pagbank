@@ -1,3 +1,8 @@
+<?php
+if (!defined('ABSPATH')) exit;
+wp_nonce_field('pagbank_process_payment', 'pagbank_payment_nonce');
+?>
+
 <div class="pmpro_checkout-fields">
     <h3>Información de Pago</h3>
     <div class="pmpro_checkout-field">
