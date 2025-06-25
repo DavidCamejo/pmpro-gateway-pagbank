@@ -24,7 +24,7 @@ Gateway de pago nativo para **Paid Memberships Pro** que integra PagBank como m�
 
 ## 📦 Instalación
 
-1. Descarga el [ZIP del plugin](https://github.com/tu-usuario/pmpro-gateway-pagbank/archive/main.zip).
+1. Descarga el [ZIP del plugin](https://github.com/DavidCamejo/pmpro-gateway-pagbank/archive/main.zip).
 2. En WordPress: **Plugins > Añadir nuevo > Subir plugin**.
 3. Activa el plugin **PMPro Gateway - PagBank**.
 
