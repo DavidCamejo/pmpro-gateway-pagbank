@@ -19,6 +19,17 @@ class PMPro_PagBank_Webhooks {
     }
 
     /**
+     * Verifica la firma del webhook.
+     */
+    private function verify_signature($request) {
+        $payload = $request->get_json_params();
+        $signature = $request->get_header('PagBank-Signature');
+        $secret = pmpro_getOption('pagbank_api_key');
+        $computed_signature = hash_hmac('sha256', json_encode($payload), $secret);
+        return hash_equals($signature, $computed_signature);
+    }
+
+    /**
      * Manejar eventos genéricos.
      */
     public function handle_webhook($request) {
@@ -34,8 +45,16 @@ class PMPro_PagBank_Webhooks {
             case 'PAYMENT_BOLETO_PAID':
                 $this->handle_boleto_payment($payload);
                 break;
+            case 'PAYMENT_CONFIRMED':
+            case 'CHARGE_PAID':
+                $this->process_recurring_payment($payload);
+                break;
+            case 'PAYMENT_FAILED':
+            case 'CHARGE_FAILED':
+                $this->process_failed_payment($payload);
+                break;
             default:
-                // Eventos de tarjeta u otros
+                error_log('PagBank: Evento no manejado: ' . $payload['event']);
         }
         return new WP_REST_Response(array('status' => 'success'), 200);
     }
@@ -101,53 +120,46 @@ class PMPro_PagBank_Webhooks {
         );
         return new MemberOrder($order_id);
     }
-}
+    
+    /**
+     * Procesar pagos recurrentes exitosos.
+     */
+    private function process_recurring_payment($payload) {
+        $subscription_id = $payload['subscription_id'];
+        $order = new MemberOrder();
+        $order->getLastMemberOrderBySubscriptionTransactionID($subscription_id);
 
-    private function verify_signature($payload, $signature) {
-        $secret = pmpro_getOption('pagbank_api_key');
-        $computed_signature = hash_hmac('sha256', json_encode($payload), $secret);
-        return hash_equals($signature, $computed_signature);
+        if (empty($order->id)) {
+            error_log("Orden no encontrada para suscripción: " . $subscription_id);
+            return;
+        }
+
+        // Registrar el pago en PMPro
+        $order->payment_transaction_id = $payload['id'];
+        $order->status = 'success';
+        $order->saveOrder();
     }
 
-	/**
-	 * Procesar pagos recurrentes exitosos.
-	 */
-	private function process_recurring_payment($payload) {
-		$subscription_id = $payload['subscription_id'];
-		$order = new MemberOrder();
-		$order->getLastMemberOrderBySubscriptionTransactionID($subscription_id);
+    /**
+     * Manejar pagos fallidos.
+     */
+    private function process_failed_payment($payload) {
+        $subscription_id = $payload['subscription_id'];
+        $order = new MemberOrder();
+        $order->getLastMemberOrderBySubscriptionTransactionID($subscription_id);
 
-		if (empty($order->id)) {
-			error_log("Orden no encontrada para suscripción: " . $subscription_id);
-			return;
-		}
-
-		// Registrar el pago en PMPro
-		$order->payment_transaction_id = $payload['id'];
-		$order->status = 'success';
-		$order->saveOrder();
-	}
-
-	/**
-	 * Manejar pagos fallidos.
-	 */
-	private function process_failed_payment($payload) {
-		$subscription_id = $payload['subscription_id'];
-		$order = new MemberOrder();
-		$order->getLastMemberOrderBySubscriptionTransactionID($subscription_id);
-
-		if (!empty($order->id)) {
-			$order->status = 'error';
-			$order->error = $payload['failure_reason'];
-			$order->saveOrder();
-			
-			// Opcional: Enviar email al admin
-			wp_mail(
-				get_option('admin_email'),
-				'Pago recurrente fallido',
-				"La suscripción {$subscription_id} falló. Motivo: " . $payload['failure_reason']
-			);
-		}
-	}
+        if (!empty($order->id)) {
+            $order->status = 'error';
+            $order->error = $payload['failure_reason'];
+            $order->saveOrder();
+            
+            // Opcional: Enviar email al admin
+            wp_mail(
+                get_option('admin_email'),
+                'Pago recurrente fallido',
+                "La suscripción {$subscription_id} falló. Motivo: " . $payload['failure_reason']
+            );
+        }
+    }
 }
 ?>
