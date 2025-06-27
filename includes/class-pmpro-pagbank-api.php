@@ -125,24 +125,26 @@ class PMPro_PagBank_API {
 		);
 	}
 
-	// Cargar JS y CSS
-	add_action('wp_enqueue_scripts', function() {
+	/**
+	 * Cargar JS y CSS
+	 */
+	public function enqueue_scripts() {
 		if (pmpro_is_checkout()) {
 			wp_enqueue_script(
 				'pmpro-pagbank-js',
-				plugin_dir_url(__FILE__) . 'assets/js/pagbank-checkout.js',
+				plugin_dir_url(__FILE__) . '../assets/js/pagbank-checkout.js',
 				array('jquery'),
 				'1.0',
 				true
 			);
 			wp_enqueue_style(
 				'pmpro-pagbank-css',
-				plugin_dir_url(__FILE__) . 'assets/css/pagbank-checkout.css',
+				plugin_dir_url(__FILE__) . '../assets/css/pagbank-checkout.css',
 				array(),
 				'1.0'
 			);
 		}
-	});
+	}
 
 	public function cancel_subscription($subscription_id) {
 		$endpoint = $this->get_api_url() . '/subscriptions/' . $subscription_id . '/cancel';
@@ -251,6 +253,6 @@ class PMPro_PagBank_API {
 	}
 
 	// Llamar al activar el plugin
-	register_activation_hook(__FILE__, array('PMPro_PagBank_API', 'register_webhooks'));
+	// The register_activation_hook call has been moved to the main plugin file
 }
 ?>

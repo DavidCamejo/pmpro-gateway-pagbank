@@ -1,6 +1,22 @@
 # Changelog
 
-## [1.0.1] - 2023-06-26
+## [1.0.2] - 2025-06-27
+
+### Fixed
+
+- Corregido error de sintaxis en clase `PMPro_PagBank_API` - función incorrectamente colocada fuera de la clase
+- Convertida la acción directa `add_action` a un método de clase `enqueue_scripts`
+- Corregidas rutas de archivos JS/CSS usando `../assets/` para reflejar la estructura correcta de directorios
+- Movido el hook de activación `register_activation_hook` al archivo principal del plugin
+- Corregido error llamando a un método no-estático (`register_webhooks`) como estático
+- Corregido método incorrecto `PMProGateway::register_gateway()` implementando un método estático `register_gateway()` en la clase `PMProGateway_PagBank` que registra el gateway manualmente
+
+### Archivos modificados
+
+- `includes/class-pmpro-pagbank-api.php`
+- `pmpro-gateway-pagbank.php`
+
+## [1.0.1] - 2025-06-26
 
 ### Fixed
 
@@ -15,7 +31,7 @@
 
 - `includes/class-pmpro-pagbank-webhooks.php`
 
-## [1.0.0] - 2023-06-25
+## [1.0.0] - 2025-06-25
 
 ### Added
 

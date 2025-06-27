@@ -1,8 +1,9 @@
 <?php
 /*
 Plugin Name: PMPro Gateway - PagBank
-Description: Integración de PagBank con Paid Memberships Pro.
-Version: 1.1.0
+Plugin URI: https://github.com/DavidCamejo/pmpro-gateway-pagbank
+Description: Integración de PagBank como gateway de pago para Paid Memberships Pro
+Version: 1.0.3
 Author: David Camejo
 License: GPLv2
 */
@@ -14,6 +15,19 @@ define('PMPRO_PAGBANK_DIR', dirname(__FILE__));
 require_once(PMPRO_PAGBANK_DIR . '/includes/class-pmpro-pagbank-api.php');
 require_once(PMPRO_PAGBANK_DIR . '/includes/class-pmpro-pagbank-webhooks.php');
 
+// Inicializar API
+$pagbank_api = new PMPro_PagBank_API();
+
+// Registrar scripts y estilos
+add_action('wp_enqueue_scripts', array($pagbank_api, 'enqueue_scripts'));
+
+// Registrar webhooks en la activación del plugin
+function pmpro_pagbank_activate() {
+    $api = new PMPro_PagBank_API();
+    $api->register_webhooks();
+}
+register_activation_hook(__FILE__, 'pmpro_pagbank_activate');
+
 class PMProGateway_PagBank extends PMProGateway {
     public function __construct() {
         $this->gateway = 'pagbank';
@@ -23,6 +37,19 @@ class PMProGateway_PagBank extends PMProGateway {
 
         // Configurar webhooks
         add_action('init', array($this, 'setup_webhooks'));
+    }
+    
+    /**
+     * Estático: Registrar el gateway
+     */
+    public static function register_gateway($gateway_name) {
+        // Registrar el gateway manualmente ya que la función que necesitamos no está disponible
+        global $pmpro_gateways;
+        $pmpro_gateways[$gateway_name] = __CLASS__;
+        add_filter('pmpro_gateways', function($gateways) use ($gateway_name) {
+            $gateways[$gateway_name] = __CLASS__;
+            return $gateways;
+        });
     }
 
     /**
@@ -82,7 +109,8 @@ class PMProGateway_PagBank extends PMProGateway {
 // Registrar el gateway en PMPro
 add_action('init', function() {
     if (class_exists('PMProGateway')) {
-        PMProGateway::register_gateway('pagbank', 'PMProGateway_PagBank');
+        // Usar el método de la clase PMProGateway para registrar el gateway
+        PMProGateway_PagBank::register_gateway('pagbank');
     }
 });
 
